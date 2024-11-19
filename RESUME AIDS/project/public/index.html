@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Parser</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .upload-form {
+            margin-bottom: 20px;
+        }
+        .results {
+            display: none;
+            margin-top: 20px;
+        }
+        .result-item {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+        }
+        .result-label {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        .skills-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .skill-tag {
+            background-color: #e9ecef;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .experience-item, .achievement-item {
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        .dates {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Resume Parser</h1>
+        
+        <div class="upload-form">
+            <form id="uploadForm">
+                <input type="file" id="resumeFile" accept=".pdf" required>
+                <button type="submit">Parse Resume</button>
+            </form>
+        </div>
+
+        <div id="loading" class="loading">
+            Parsing resume...
+        </div>
+
+        <div id="results" class="results">
+            <div class="result-item">
+                <div class="result-label">Name:</div>
+                <div id="name"></div>
+            </div>
+
+            <div class="result-item">
+                <div class="result-label">Email:</div>
+                <div id="email"></div>
+            </div>
+            
+            <div class="result-item">
+                <div class="result-label">Phone:</div>
+                <div id="phone"></div>
+            </div>
+            
+            <div class="result-item">
+                <div class="result-label">Technical Skills:</div>
+                <div id="technicalSkills" class="skills-list"></div>
+            </div>
+
+            <div class="result-item">
+                <div class="result-label">Soft Skills:</div>
+                <div id="softSkills" class="skills-list"></div>
+            </div>
+            
+            <div class="result-item">
+                <div class="result-label">Experience:</div>
+                <div id="experience"></div>
+            </div>
+
+            <div class="result-item">
+                <div class="result-label">Achievements:</div>
+                <div id="achievements"></div>
+            </div>
+            
+            <div class="result-item">
+                <div class="result-label">Raw Text Preview:</div>
+                <div id="rawText" style="white-space: pre-wrap;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('resumeFile');
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+            
+            try {
+                const response = await fetch('/parse', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('results').style.display = 'block';
+                    
+                    document.getElementById('name').textContent = data.name || 'Not found';
+                    document.getElementById('email').textContent = data.email || 'Not found';
+                    document.getElementById('phone').textContent = data.phone || 'Not found';
+                    
+                    const technicalSkillsContainer = document.getElementById('technicalSkills');
+                    technicalSkillsContainer.innerHTML = '';
+                    if (data.skills.technical && data.skills.technical.length > 0) {
+                        data.skills.technical.forEach(skill => {
+                            const skillTag = document.createElement('span');
+                            skillTag.className = 'skill-tag';
+                            skillTag.textContent = skill;
+                            technicalSkillsContainer.appendChild(skillTag);
+                        });
+                    } else {
+                        technicalSkillsContainer.textContent = 'No technical skills detected';
+                    }
+
+                    const softSkillsContainer = document.getElementById('softSkills');
+                    softSkillsContainer.innerHTML = '';
+                    if (data.skills.soft && data.skills.soft.length > 0) {
+                        data.skills.soft.forEach(skill => {
+                            const skillTag = document.createElement('span');
+                            skillTag.className = 'skill-tag';
+                            skillTag.textContent = skill;
+                            softSkillsContainer.appendChild(skillTag);
+                        });
+                    } else {
+                        softSkillsContainer.textContent = 'No soft skills detected';
+                    }
+
+                    const experienceContainer = document.getElementById('experience');
+                    experienceContainer.innerHTML = '';
+                    if (data.experience && data.experience.length > 0) {
+                        data.experience.forEach(exp => {
+                            const expDiv = document.createElement('div');
+                            expDiv.className = 'experience-item';
+                            expDiv.innerHTML = `
+                                <div class="dates">${exp.dates.join(' - ')}</div>
+                                <div>${exp.description}</div>
+                            `;
+                            experienceContainer.appendChild(expDiv);
+                        });
+                    } else {
+                        experienceContainer.textContent = 'No experience detected';
+                    }
+
+                    const achievementsContainer = document.getElementById('achievements');
+                    achievementsContainer.innerHTML = '';
+                    if (data.achievements && data.achievements.length > 0) {
+                        data.achievements.forEach(achievement => {
+                            const achievementDiv = document.createElement('div');
+                            achievementDiv.className = 'achievement-item';
+                            achievementDiv.textContent = achievement;
+                            achievementsContainer.appendChild(achievementDiv);
+                        });
+                    } else {
+                        achievementsContainer.textContent = 'No achievements detected';
+                    }
+                    
+                    document.getElementById('rawText').textContent = data.raw_text;
+                } else {
+                    alert(data.error || 'An error occurred');
+                }
+            } catch (error) {
+                alert('An error occurred while parsing the resume');
+                console.error(error);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
